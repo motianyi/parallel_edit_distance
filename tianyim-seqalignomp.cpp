@@ -168,7 +168,7 @@ int getMinimumPenalty(std::string x, std::string y, int pxy, int pgap,
         int i_min = max(1, k - n);
         int i_max   = min(k - 1, m);
 		// printf("k value: %d\n", k);
-		#pragma omp parallel for firstprivate(i_min, i_max) shared(dp)
+		#pragma omp parallel for shared(dp)
         for (int i = i_min; i <= i_max; i++){
             int j = k - i;
 			// printf("i value: %d, j value: %d, %d,%d,%d\n", i, j,dp[i-1][j-1] + (x[j-1] == y[i-1] ? 0 : pxy),dp[i-1][j] + pgap, dp[i][j-1] + pgap);
