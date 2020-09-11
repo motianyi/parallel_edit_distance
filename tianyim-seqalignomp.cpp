@@ -67,16 +67,16 @@ int main(){
 	std::cout << "Minimum Penalty in aligning the genes = ";
 	std::cout << penalty << std::endl;
 	std::cout << "The aligned genes are :" << std::endl;
-	for (i = id; i <= l; i++)
-	{
-		std::cout<<(char)xans[i];
-	}
-	std::cout << "\n";
-	for (i = id; i <= l; i++)
-	{
-		std::cout << (char)yans[i];
-	}
-	std::cout << "\n";
+	// for (i = id; i <= l; i++)
+	// {
+	// 	std::cout<<(char)xans[i];
+	// }
+	// std::cout << "\n";
+	// for (i = id; i <= l; i++)
+	// {
+	// 	std::cout << (char)yans[i];
+	// }
+	// std::cout << "\n";
 
 	return 0;
 }
@@ -163,20 +163,70 @@ int getMinimumPenalty(std::string x, std::string y, int pxy, int pgap,
 	// }
 
 	// first parallel version
-	int k, i_min, i_max;
-	for (k = 2; k <= m + n; k++){
-        int i_min = max(1, k - n);
-        int i_max   = min(k - 1, m);
-		// printf("k value: %d\n", k);
-		#pragma omp parallel for shared(dp)
-        for (int i = i_min; i <= i_max; i++){
-            int j = k - i;
-			// printf("i value: %d, j value: %d, %d,%d,%d\n", i, j,dp[i-1][j-1] + (x[j-1] == y[i-1] ? 0 : pxy),dp[i-1][j] + pgap, dp[i][j-1] + pgap);
-            dp[i][j] = min3(dp[i-1][j-1] + (x[i-1] == y[j-1] ? 0 : pxy), dp[i-1][j] + pgap, dp[i][j-1] + pgap);
+	// int k, i_min, i_max;
+	// for (k = 2; k <= m + n; k++){
+    //     int i_min = max(1, k - n);
+    //     int i_max   = min(k - 1, m);
+	// 	// printf("k value: %d\n", k);
+	// 	#pragma omp parallel for shared(dp)
+    //     for (int i = i_min; i <= i_max; i++){
+    //         int j = k - i;
+	// 		// printf("i value: %d, j value: %d, %d,%d,%d\n", i, j,dp[i-1][j-1] + (x[j-1] == y[i-1] ? 0 : pxy),dp[i-1][j] + pgap, dp[i][j-1] + pgap);
+    //         dp[i][j] = min3(dp[i-1][j-1] + (x[i-1] == y[j-1] ? 0 : pxy), dp[i-1][j] + pgap, dp[i][j-1] + pgap);
 			
 		
-        }
-    }
+    //     }
+    // } 
+
+	int k;
+
+	int number_threads = 12;
+	//integer devision
+	int block_width = m / number_threads;
+	int block_height = n / number_threads;
+	int width_remainder = m % number_threads;
+	int height_remainder = n % number_threads;
+
+	printf("block_width : %d\n", block_width);
+	printf("block_height : %d\n", block_height);
+	for(k = 0; k < (2 * number_threads - 1); k++ ){
+		// printf("KKKK");
+		int column_min = max(0, k - number_threads + 1);
+        int column_max = min(k, number_threads - 1);
+		// printf("cloumn-min-max %d, %d \n", column_min, column_max);
+		#pragma omp parallel for
+		for (int column = column_min; column <= column_max; column++){
+			int row = k - column;
+			int block_min_column = column * block_height + 1;
+			int block_max_column = (column + 1) * block_height;
+			int block_min_row = row * block_width + 1;
+			int block_max_row = (row + 1) * block_width;
+			// printf("%d, %d \n", row, column);
+			// handle last row
+			if(column == number_threads-1){
+				block_max_column += height_remainder;
+			}
+			if(row == number_threads-1){
+				block_max_row += width_remainder;
+			}
+			// printf("%d, %d, %d, %d \n", block_min_column, block_max_column, block_min_row, block_max_row);
+			// sequential block calculation
+			for (int i = block_min_column; i <= block_max_column; i++){
+				// printf("i = %d\n", i);
+				for (int j = block_min_row; j <= block_max_row; j++){
+					if (x[i - 1] == y[j - 1]){
+						dp[i][j] = dp[i - 1][j - 1];
+					}else{
+						dp[i][j] = min3(dp[i - 1][j - 1] + pxy ,
+								dp[i - 1][j] + pgap ,
+								dp[i][j - 1] + pgap);
+					}
+				}
+			}
+		}
+		
+	}
+
 
 
 	// Reconstructing the solution
