@@ -209,17 +209,31 @@ int getMinimumPenalty(std::string x, std::string y, int pxy, int pgap,
 			}
 			// printf("%d, %d, %d, %d \n", block_min_column, block_max_column, block_min_row, block_max_row);
 			// sequential block calculation
-			for (int i = block_min_column; i <= block_max_column; i++){
-				// printf("i = %d\n", i);
-				for (int j = block_min_row; j <= block_max_row; j++){
-					if (x[i - 1] == y[j - 1]){
-						dp[i][j] = dp[i - 1][j - 1];
-					}else{
-						dp[i][j] = min3(dp[i - 1][j - 1] + pxy ,
-								dp[i - 1][j] + pgap ,
-								dp[i][j - 1] + pgap);
+			if(block_max_column >= block_min_column && block_max_row >= block_min_row){
+				// printf("%d, %d, %d, %d \n", block_min_column, block_max_column, block_min_row, block_max_row);
+				for (int i = block_min_row; i <= block_max_row; i++){
+					
+					for (int j = block_min_column; j <= block_max_column; j++){
+						// printf("i = %d\n", i);
+						if (x[i - 1] == y[j - 1]){
+							dp[i][j] = dp[i - 1][j - 1];
+						}else{
+							dp[i][j] = min3(dp[i - 1][j - 1] + pxy ,
+									dp[i - 1][j] + pgap ,
+									dp[i][j - 1] + pgap);
+						}
 					}
 				}
+				
+				// printf("\n");
+				// for(int b = 0; b < n+1; b++){
+				// 	for(int a = 0; a<m+1; a++){
+				// 		printf("%d  ",dp[a][b]);
+				// 	}
+				// 	printf("\n");
+				// }
+				// printf("finish\n");
+
 			}
 		}
 		
