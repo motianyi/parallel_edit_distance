@@ -162,43 +162,57 @@ int getMinimumPenalty(std::string x, std::string y, int pxy, int pgap,
 	// 	}
 	// }
 
+	// first parallel version
+	// int k, i_min, i_max;
+	// for (k = 2; k <= m + n; k++){
+    //     int i_min = max(1, k - n);
+    //     int i_max   = min(k - 1, m);
+	// 	// printf("k value: %d\n", k);
+	// 	#pragma omp parallel for shared(dp)
+    //     for (int i = i_min; i <= i_max; i++){
+    //         int j = k - i;
+	// 		// printf("i value: %d, j value: %d, %d,%d,%d\n", i, j,dp[i-1][j-1] + (x[j-1] == y[i-1] ? 0 : pxy),dp[i-1][j] + pgap, dp[i][j-1] + pgap);
+    //         dp[i][j] = min3(dp[i-1][j-1] + (x[i-1] == y[j-1] ? 0 : pxy), dp[i-1][j] + pgap, dp[i][j-1] + pgap);
+			
+		
+    //     }
+    // } 
+
+	int k;
 
 	int number_threads = 24;
-
 	//integer devision
-	//calculate the deminsion of each block
 	int block_width = m / number_threads;
 	int block_height = n / number_threads;
 	int width_remainder = m % number_threads;
 	int height_remainder = n % number_threads;
 
-	for(int k = 0; k < (2 * number_threads - 1); k++ ){
-
+	for(k = 0; k < (2 * number_threads - 1); k++ ){
+		// printf("KKKK");
 		int column_min = max(0, k - number_threads + 1);
         int column_max = min(k, number_threads - 1);
-
+		// printf("cloumn-min-max %d, %d \n", column_min, column_max);
 		#pragma omp parallel for shared(dp, x,y)
 		for (int column = column_min; column <= column_max; column++){
 			int row = k - column;
-
-			//calculate the elements index in the block
 			int block_min_column = column * block_height + 1;
 			int block_max_column = (column + 1) * block_height;
 			int block_min_row = row * block_width + 1;
 			int block_max_row = (row + 1) * block_width;
-			
-			// handle row and column remainder
+			// printf("%d, %d \n", row, column);
+			// handle last row
 			if(column == number_threads-1){
 				block_max_column += height_remainder;
 			}
 			if(row == number_threads-1){
 				block_max_row += width_remainder;
 			}
-			
-			// sequential calculation within each block
+			// printf("%d, %d, %d, %d \n", block_min_column, block_max_column, block_min_row, block_max_row);
+			// sequential block calculation
 			if(block_max_column >= block_min_column && block_max_row >= block_min_row){
-				
+				// printf("%d, %d, %d, %d \n", block_min_column, block_max_column, block_min_row, block_max_row);
 				for (int i = block_min_row; i <= block_max_row; i++){
+					
 					for (int j = block_min_column; j <= block_max_column; j++){
 						// printf("i = %d\n", i);
 						if (x[i - 1] == y[j - 1]){
@@ -211,6 +225,15 @@ int getMinimumPenalty(std::string x, std::string y, int pxy, int pgap,
 					}
 				}
 				
+				// printf("\n");
+				// for(int b = 0; b < n+1; b++){
+				// 	for(int a = 0; a<m+1; a++){
+				// 		printf("%d  ",dp[a][b]);
+				// 	}
+				// 	printf("\n");
+				// }
+				// printf("finish\n");
+
 			}
 		}
 		
@@ -272,5 +295,110 @@ int getMinimumPenalty(std::string x, std::string y, int pxy, int pgap,
 	return ret;
 }
 
+// int getMinimumPenalty2(std::string x, std::string y, int pxy, int pgap,int* xans, int* yans){
+// 	int i, j; // intialising variables
+// 	int m = x.length(); // length of gene1
+// 	int n = y.length(); // length of gene2
+	
+
+// 	// second parallel version
+// 	int **dp_v = new2d(m + n + 1, min(n, m) +1);
+// 	int width = min(n, m);
+// 	size_t size = (m + n + 1);
+// 	size *= (min(n, m) +1);
+// 	memset (dp_v[0], 0, size);
+// 	dp_v[0][0] = 0;
+// 	dp_v[1][0] = pgap;
+// 	dp_v[1][1] = pgap;
+// 	int k;
+// 	for (k = 2; k <= m + n; k++){
+//         int i_min = max(1, k - n);
+//         int i_max = min(k - 1, m);
+// 		int *last_last_row = dp_v[k-2];
+// 		int *last_row = dp_v[k-1];
+// 		int *this_row = dp_v[k];
+//         //Fill in Diagonal with base case (if the diagonal passes through a base case cell
+//         if(k <= min(m, n)){
+//         	this_row[k] = k * pgap;
+//         	this_row[0] = k * pgap;
+//         }
+
+						
+//        	#pragma omp parallel for firstprivate(i_min, i_max, this_row, last_row, last_last_row) shared(x, y)
+//         for (int i = i_min; i <= i_max; i++){
+// 			int j = k - i;
+//             this_row[i] = min3(last_row[i] + pgap, last_row[i - 1] + pgap, last_last_row[i - 1] + (y[j - 1] == x[i - 1] ? 0 : pxy));
+// 		}
+//     }
+   
+// 	// Reconstructing the solution
+// 	int l = n + m; // maximum possible length
+	
+// 	i = m; j = n;
+	
+// 	int xpos = l;
+// 	int ypos = l;
+	
+// 	while ( !(i == 0 || j == 0))
+// 	{
+// 		k = i + j;
+// 		if (x[i - 1] == y[j - 1])
+// 		{
+// 			xans[xpos--] = (int)x[i - 1];
+// 			yans[ypos--] = (int)y[j - 1];
+// 			i--; j--;
+// 		}
+// 		else if (dp_v[k - 2][i - 1] + pxy == dp_v[k][i])
+// 		{
+// 			xans[xpos--] = (int)x[i - 1];
+// 			yans[ypos--] = (int)y[j - 1];
+// 			i--; j--;
+// 		}
+// 		else if (dp_v[k-1][i - 1] + pgap == dp_v[k][i])
+// 		{
+// 			xans[xpos--] = (int)x[i - 1];
+// 			yans[ypos--] = (int)'_';
+// 			i--;
+// 		}
+// 		else if (dp_v[k - 1][i] + pgap == dp_v[k][i])
+// 		{
+// 			xans[xpos--] = (int)'_';
+// 			yans[ypos--] = (int)y[j - 1];
+// 			j--;
+// 		}
+// 	}
+// 	while (xpos > 0)
+// 	{
+// 		if (i > 0) xans[xpos--] = (int)x[--i];
+// 		else xans[xpos--] = (int)'_';
+// 	}
+// 	while (ypos > 0)
+// 	{
+// 		if (j > 0) yans[ypos--] = (int)y[--j];
+// 		else yans[ypos--] = (int)'_';
+// 	}
+
+// 	// int ret = dp[m][n];
+// 	int ret = dp_v[m + n][min(n, m)];
+
+// 	delete[] dp_v[0];
+// 	delete[] dp_v;
+	
+// 	return ret;
+// }
+
+// int inline min(int x, int y){
+// 	if(x > y){
+// 		return y;
+// 	}
+// 	return x;
+// }
+
+// int inline max(int x, int y){
+// 	if(x < y){
+// 		return y;
+// 	}
+// 	return x;
+// }
 
 //g++ -fopenmp tianyim-seqalignomp.cpp -o tianyim-seqalignomp -O3
