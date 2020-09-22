@@ -163,7 +163,7 @@ int getMinimumPenalty(std::string x, std::string y, int pxy, int pgap,
 	// }
 
 
-	int number_threads = 24;
+	int number_threads = 22;
 
 	//integer devision
 	//calculate the deminsion of each block
