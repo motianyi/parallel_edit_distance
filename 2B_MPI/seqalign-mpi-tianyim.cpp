@@ -145,6 +145,14 @@ int **new2d (int width, int height)
 std::string getMinimumPenalties(std::string *genes, int k, int pxy, int pgap,
 	int *penalties)
 {
+	MPI_Comm shmcomm;
+	MPI_Comm_split_type(MPI_COMM_WORLD, MPI_COMM_TYPE_SHARED, 0,
+                    MPI_INFO_NULL, &shmcomm);
+	int shmrank;
+	MPI_Comm_rank(shmcomm, &shmrank);
+	std::cout << "shmrank: "<< shmrank <<" \n";
+
+	
 	int rank;
 	MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 	std::cout << "rank: "<< rank <<" \n";
@@ -274,6 +282,13 @@ std::string getMinimumPenalties(std::string *genes, int k, int pxy, int pgap,
 // do stuff for each MPI task based on rank
 void do_MPI_task(int rank)
 {	
+	MPI_Comm shmcomm;
+	MPI_Comm_split_type(MPI_COMM_WORLD, MPI_COMM_TYPE_SHARED, 0,
+                    MPI_INFO_NULL, &shmcomm);
+	int shmrank;
+	MPI_Comm_rank(shmcomm, &shmrank);
+	std::cout << "shmrank: "<< shmrank <<" \n";
+
 	int root = 0;
 	int rank2;
 	MPI_Comm_rank(MPI_COMM_WORLD, &rank2);
