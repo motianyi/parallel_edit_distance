@@ -148,6 +148,8 @@ int **new2d (int width, int height)
 std::string getMinimumPenalties(std::string *genes, int k, int pxy, int pgap,
 	int *penalties)
 {
+	omp_set_nested(1);
+
 	MPI_Comm shmcomm;
 	MPI_Comm_split_type(MPI_COMM_WORLD, MPI_COMM_TYPE_SHARED, 0,
                     MPI_INFO_NULL, &shmcomm);
@@ -221,43 +223,73 @@ std::string getMinimumPenalties(std::string *genes, int k, int pxy, int pgap,
 	// 	MPI_Send(&p, 1, MPI_PROBLEM, 0, 1111, MPI_COMM_WORLD);
 	// }
 	 
-	//send initial job to each process (EXCEPT root)
-	int world_size;
-	MPI_Comm_size(MPI_COMM_WORLD, &world_size);
+	# pragma omp parallel sections{
+		#pragma omp section
+		{
+			//send initial job to each process (EXCEPT root)
+			int world_size;
+			MPI_Comm_size(MPI_COMM_WORLD, &world_size);
 
-	int workers = min(world_size - 1, (k*(k-1))/2);
-	for(int i = 0; i < workers; i++){
-		Problem p = problem_queue.top();
-		problem_queue.pop();
-		// (i + 1) is the destination, tag is 0
-		MPI_Send(&p, 1, MPI_PROBLEM, i + 1, 0, MPI_COMM_WORLD);
+			int workers = min(world_size, (k*(k-1))/2);
+			for(int i = 0; i < workers; i++){
+				Problem p = problem_queue.top();
+				problem_queue.pop();
+				// (i + 1) is the destination, tag is 0
+				MPI_Send(&p, 1, MPI_PROBLEM, i, 0, MPI_COMM_WORLD);
+			}
+
+			while(!problem_queue.empty()){
+				Result result;
+				MPI_Status status;
+				// send to rank 0
+				MPI_Recv(&result, 1, MPI_RESULT, MPI_ANY_SOURCE, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
+				result_queue.push(result);
+				std::cout<<"RECEIVE result\n";
+
+				// send new task to it
+				Problem p = problem_queue.top();
+				problem_queue.pop();
+				MPI_Send(&p, 1, MPI_PROBLEM, status.MPI_SOURCE, 0, MPI_COMM_WORLD);
+				std::cout<<"Send Another\n";
+			}
+
+			// receive rest of the results
+			for(int i = 0; i < workers; i++){
+				Result result;
+				MPI_Status status;
+				MPI_Recv(&result, 1, MPI_RESULT, MPI_ANY_SOURCE, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
+				result_queue.push(result);
+				std::cout<<"RECEIVE result\n";
+				Problem end_exec = {-1, -1, -1, -1};
+				MPI_Send(&end_exec, 1, MPI_PROBLEM, status.MPI_SOURCE, 0, MPI_COMM_WORLD);
+			}
+
+		}
+		#pragma omp section
+		{
+			while(true){
+				// receive task
+				Problem p;
+				MPI_Status status;
+				MPI_Recv(&p, 1, MPI_PROBLEM, root, 0, MPI_COMM_WORLD, &status);
+				if(p.probNum < 0){
+					break;
+				}
+				std::cout <<"Rank"<< rank<< ", i: "<< p.i <<"  j: "<< p.j <<"  ProbNum: "<< p.probNum<<"  Problem Size: "<< p.size  <<" \n" ;
+
+				//compute
+				Result result;
+				result.probNum = p.probNum;
+				compute(genes, p.i, p.j, pxy, pgap, &result);
+				std::cout <<"ProbNum "<< result.probNum << ", Penality"<< result.penality<< ",result hash: "<< result.problemHash <<" \n" ;
+
+				// send result to rank 0
+				MPI_Send(&result, 1, MPI_RESULT, root, 0, MPI_COMM_WORLD);
+				// std::cout <<"Sent\n ";
+			}
+		}
 	}
-
-	while(!problem_queue.empty()){
-		Result result;
-		MPI_Status status;
-		// send to rank 0
-		MPI_Recv(&result, 1, MPI_RESULT, MPI_ANY_SOURCE, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
-		result_queue.push(result);
-		std::cout<<"RECEIVE result\n";
-
-		// send new task to it
-		Problem p = problem_queue.top();
-		problem_queue.pop();
-		MPI_Send(&p, 1, MPI_PROBLEM, status.MPI_SOURCE, 0, MPI_COMM_WORLD);
-		std::cout<<"Send Another\n";
-	}
-
-	// receive rest of the results
-	for(int i = 0; i < workers; i++){
-		Result result;
-		MPI_Status status;
-		MPI_Recv(&result, 1, MPI_RESULT, MPI_ANY_SOURCE, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
-		result_queue.push(result);
-		std::cout<<"RECEIVE result\n";
-		Problem end_exec = {-1, -1, -1, -1};
-		MPI_Send(&end_exec, 1, MPI_PROBLEM, status.MPI_SOURCE, 0, MPI_COMM_WORLD);
-	}
+	
 
 	// combine and calculate the result
 	std::string alignmentHash="";
@@ -329,6 +361,7 @@ void do_MPI_task(int rank)
 	MPI_Type_create_struct(elements, blocklengths, offsets, types, &MPI_RESULT);
 	MPI_Type_commit(&MPI_RESULT);
 
+
 	while(true){
 		// receive task
 		Problem p;
@@ -349,6 +382,7 @@ void do_MPI_task(int rank)
 		MPI_Send(&result, 1, MPI_RESULT, root, 0, MPI_COMM_WORLD);
 		// std::cout <<"Sent\n ";
 	}
+	
 
 }
 
