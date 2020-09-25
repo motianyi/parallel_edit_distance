@@ -35,7 +35,8 @@ const int root = 0;
 // Driver code
 int main(int argc, char **argv){
 	int rank;
-	MPI_Init(&argc, &argv);
+	int provided;
+	MPI_Init_thread(&argc, &argv, MPI_THREAD_FUNNELED, &provided);
 	MPI_Comm_rank(comm, &rank);
 	if(rank==root){
 		int misMatchPenalty;
