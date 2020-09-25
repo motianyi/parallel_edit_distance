@@ -81,6 +81,8 @@ int main(int argc, char **argv){
 /* All of your changes should be below this line. */
 /******************************************************************************/
 #include <queue>
+#include "omp.h"
+#include "math.h"
 
 struct Problem { 
     int i; 
@@ -397,50 +399,187 @@ void compute(string* genes, int i, int j, int pxy, int pgap, Result* result)
 }
 
 
-// function to find out the minimum penalty
-// return the minimum penalty and put the aligned sequences in xans and yans
-int getMinimumPenalty(std::string x, std::string y, int pxy, int pgap, int *xans, int *yans)
-{
+// // function to find out the minimum penalty
+// // return the minimum penalty and put the aligned sequences in xans and yans
+// int getMinimumPenalty(std::string x, std::string y, int pxy, int pgap, int *xans, int *yans)
+// {
 	
-	int i, j; // intialising variables
+// 	int i, j; // intialising variables
 
+// 	int m = x.length(); // length of gene1
+// 	int n = y.length(); // length of gene2
+// 	std::cout <<"m: "<< m<<", "<<"n: "<< n<< "\n";
+	
+// 	// table for storing optimal substructure answers
+// 	int **dp = new2d (m+1, n+1);
+// 	size_t size = m + 1;
+// 	size *= n + 1;
+// 	memset (dp[0], 0, size);
+
+// 	// intialising the table
+// 	for (i = 0; i <= m; i++)
+// 	{
+// 		dp[i][0] = i * pgap;
+// 	}
+// 	for (i = 0; i <= n; i++)
+// 	{
+// 		dp[0][i] = i * pgap;
+// 	}
+
+// 	// calcuting the minimum penalty
+// 	for (i = 1; i <= m; i++)
+// 	{
+// 		for (j = 1; j <= n; j++)
+// 		{
+// 			if (x[i - 1] == y[j - 1])
+// 			{
+// 				dp[i][j] = dp[i - 1][j - 1];
+// 			}
+// 			else
+// 			{
+// 				dp[i][j] = min3(dp[i - 1][j - 1] + pxy ,
+// 						dp[i - 1][j] + pgap ,
+// 						dp[i][j - 1] + pgap);
+// 			}
+// 		}
+// 	}
+
+// 	// Reconstructing the solution
+// 	int l = n + m; // maximum possible length
+	
+// 	i = m; j = n;
+	
+// 	int xpos = l;
+// 	int ypos = l;
+	
+// 	while ( !(i == 0 || j == 0))
+// 	{
+// 		if (x[i - 1] == y[j - 1])
+// 		{
+// 			xans[xpos--] = (int)x[i - 1];
+// 			yans[ypos--] = (int)y[j - 1];
+// 			i--; j--;
+// 		}
+// 		else if (dp[i - 1][j - 1] + pxy == dp[i][j])
+// 		{
+// 			xans[xpos--] = (int)x[i - 1];
+// 			yans[ypos--] = (int)y[j - 1];
+// 			i--; j--;
+// 		}
+// 		else if (dp[i - 1][j] + pgap == dp[i][j])
+// 		{
+// 			xans[xpos--] = (int)x[i - 1];
+// 			yans[ypos--] = (int)'_';
+// 			i--;
+// 		}
+// 		else if (dp[i][j - 1] + pgap == dp[i][j])
+// 		{
+// 			xans[xpos--] = (int)'_';
+// 			yans[ypos--] = (int)y[j - 1];
+// 			j--;
+// 		}
+// 	}
+// 	while (xpos > 0)
+// 	{
+// 		if (i > 0) xans[xpos--] = (int)x[--i];
+// 		else xans[xpos--] = (int)'_';
+// 	}
+// 	while (ypos > 0)
+// 	{
+// 		if (j > 0) yans[ypos--] = (int)y[--j];
+// 		else yans[ypos--] = (int)'_';
+// 	}
+
+// 	int ret = dp[m][n];
+
+// 	delete[] dp[0];
+// 	delete[] dp;
+	
+// 	return ret;
+// }
+
+
+// function to find out the minimum penalty
+// return the maximum penalty and put the aligned sequences in xans and yans
+int getMinimumPenalty(std::string x, std::string y, int pxy, int pgap,
+	int* xans, int* yans)
+{
+	int i, j; // intialising variables
+	
 	int m = x.length(); // length of gene1
 	int n = y.length(); // length of gene2
-	std::cout <<"m: "<< m<<", "<<"n: "<< n<< "\n";
 	
 	// table for storing optimal substructure answers
 	int **dp = new2d (m+1, n+1);
-	size_t size = m + 1;
-	size *= n + 1;
-	memset (dp[0], 0, size);
+//	size_t size = m + 1;
+//	size *= n + 1;
+//	memset (dp[0], 0, size);
 
 	// intialising the table
+	#pragma omp parallel for
 	for (i = 0; i <= m; i++)
 	{
 		dp[i][0] = i * pgap;
 	}
+	#pragma omp parallel for
 	for (i = 0; i <= n; i++)
 	{
 		dp[0][i] = i * pgap;
 	}
 
-	// calcuting the minimum penalty
-	for (i = 1; i <= m; i++)
-	{
-		for (j = 1; j <= n; j++)
-		{
-			if (x[i - 1] == y[j - 1])
-			{
-				dp[i][j] = dp[i - 1][j - 1];
+	int number_threads = 22;
+    omp_set_num_threads(number_threads);
+	//integer devision
+	//calculate the deminsion of each block
+	int block_width = m / number_threads;
+	int block_height = n / number_threads;
+	int width_remainder = m % number_threads;
+	int height_remainder = n % number_threads;
+
+	for(int k = 0; k < (2 * number_threads - 1); k++ ){
+
+		int column_min = max(0, k - number_threads + 1);
+        int column_max = min(k, number_threads - 1);
+
+		#pragma omp parallel for
+		for (int column = column_min; column <= column_max; column++){
+			int row = k - column;
+
+			//calculate the elements index in the block
+			int block_min_column = column * block_height + 1;
+			int block_max_column = (column + 1) * block_height;
+			int block_min_row = row * block_width + 1;
+			int block_max_row = (row + 1) * block_width;
+			
+			// handle row and column remainder
+			if(column == number_threads-1){
+				block_max_column += height_remainder;
 			}
-			else
-			{
-				dp[i][j] = min3(dp[i - 1][j - 1] + pxy ,
-						dp[i - 1][j] + pgap ,
-						dp[i][j - 1] + pgap);
+			if(row == number_threads-1){
+				block_max_row += width_remainder;
+			}
+			
+			// sequential calculation within each block
+			if(block_max_column >= block_min_column && block_max_row >= block_min_row){
+				
+				for (int i = block_min_row; i <= block_max_row; i++){
+					for (int j = block_min_column; j <= block_max_column; j++){
+						// printf("i = %d\n", i);
+						if (x[i - 1] == y[j - 1]){
+							dp[i][j] = dp[i - 1][j - 1];
+						}else{
+							dp[i][j] = min(min(dp[i - 1][j - 1] + pxy ,
+									dp[i - 1][j] + pgap) ,
+									dp[i][j - 1] + pgap);
+						}
+					}
+				}
+				
 			}
 		}
 	}
+
+
 
 	// Reconstructing the solution
 	int l = n + m; // maximum possible length
@@ -477,21 +616,32 @@ int getMinimumPenalty(std::string x, std::string y, int pxy, int pgap, int *xans
 			j--;
 		}
 	}
-	while (xpos > 0)
-	{
-		if (i > 0) xans[xpos--] = (int)x[--i];
-		else xans[xpos--] = (int)'_';
-	}
-	while (ypos > 0)
-	{
-		if (j > 0) yans[ypos--] = (int)y[--j];
-		else yans[ypos--] = (int)'_';
-	}
+	omp_set_num_threads(omp_get_max_threads());
+    int x_diff = xpos - i, y_diff = ypos-j;
+#pragma omp parallel for
+    for (int ii = i; ii>0; --ii){
+        xans[ii+x_diff] = (int)x[ii-1];
+    }
+#pragma omp parallel for
+    for (int x_pos2=xpos-i; x_pos2>0; --x_pos2){
+        xans[x_pos2] = (int)'_';
+    }
+
+#pragma omp parallel for
+    for (int jj = j; jj>0; --jj){
+        yans[jj+y_diff] = (int)y[jj-1];
+        if (jj==0){
+        }
+    }
+
+#pragma omp parallel for
+    for (int y_pos2=ypos-j; y_pos2>0; --y_pos2){
+        yans[y_pos2] = (int)'_';
+    }
 
 	int ret = dp[m][n];
 
-	delete[] dp[0];
-	delete[] dp;
-	
+	//delete[] dp[0];
+	//delete[] dp;
 	return ret;
 }
