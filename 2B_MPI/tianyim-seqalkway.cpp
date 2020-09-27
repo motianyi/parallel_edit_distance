@@ -111,15 +111,15 @@ struct Result {
 void compute(string* genes, int i, int j, int pxy, int pgap, Result* result);
 
 
-int min3(int a, int b, int c) {
-	if (a <= b && a <= c) {
-		return a;
-	} else if (b <= a && b <= c) {
-		return b;
-	} else {
-		return c;
-	}
-}
+// int min3(int a, int b, int c) {
+// 	if (a <= b && a <= c) {
+// 		return a;
+// 	} else if (b <= a && b <= c) {
+// 		return b;
+// 	} else {
+// 		return c;
+// 	}
+// }
 
 // equivalent of  int *dp[width] = new int[height][width]
 // but works for width not known at compile time.
@@ -150,17 +150,9 @@ std::string getMinimumPenalties(std::string *genes, int k, int pxy, int pgap,
 {
 	omp_set_nested(1);
 
-	MPI_Comm shmcomm;
-	MPI_Comm_split_type(MPI_COMM_WORLD, MPI_COMM_TYPE_SHARED, 0,
-                    MPI_INFO_NULL, &shmcomm);
-	int shmrank;
-	MPI_Comm_rank(shmcomm, &shmrank);
-	std::cout << "shmrank: "<< shmrank <<" \n";
-
-	
 	int rank;
 	MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-	std::cout << "rank: "<< rank <<" \n";
+	// std::cout << "rank: "<< rank <<" \n";
 	
 	// send pxy and pgap
 	MPI_Bcast(&pxy, 1, MPI_INT, 0, MPI_COMM_WORLD);
@@ -192,21 +184,10 @@ std::string getMinimumPenalties(std::string *genes, int k, int pxy, int pgap,
 	// Result priority queue
 	std::priority_queue<Result> result_queue;
 
-
-	// while(probNum > 0){
-	// 	Problem p = problem_queue.top();
-	// 	std::cout << "i: "<< p.i <<"  j: "<< p.j <<"  ProbNum: "<< p.probNum<<"  Problem Size: "<< p.size  <<" \n" ;
-	// 	problem_queue.pop();
-	// 	probNum --;
-	// }
-
+    // MPI Datatypes
 	MPI_Datatype MPI_PROBLEM;
 	MPI_Type_contiguous(4, MPI_INT, &MPI_PROBLEM);
 	MPI_Type_commit(&MPI_PROBLEM);
-
-	// MPI_Datatype MPI_HASH;
-	// MPI_Type_contiguous(128+1, MPI_CHAR, &MPI_HASH);
-
 	const int elements = 3;
 	MPI_Aint offsets[elements] = {0, 4, 8};
 	int blocklengths[elements] = {1, 1, 128 + 1};
@@ -215,22 +196,17 @@ std::string getMinimumPenalties(std::string *genes, int k, int pxy, int pgap,
 	MPI_Type_create_struct(elements, blocklengths, offsets, types, &MPI_RESULT);
 	MPI_Type_commit(&MPI_RESULT);
 
-
-	// while (!problem_queue.empty()){
-	// 	Problem p = problem_queue.top();
-	// 	std::cout << "i: "<< p.i <<"  j: "<< p.j <<"  ProbNum: "<< p.probNum<<"  Problem Size: "<< p.size  <<" \n" ;
-	// 	problem_queue.pop();
-	// 	MPI_Send(&p, 1, MPI_PROBLEM, 0, 1111, MPI_COMM_WORLD);
-	// }
 	 
-	#pragma omp parallel sections
+	# pragma omp parallel sections num_threads(2)
 	{
 		#pragma omp section
 		{
-			//send initial job to each process (EXCEPT root)
+			//send initial job to each process
 			int world_size;
 			MPI_Comm_size(MPI_COMM_WORLD, &world_size);
 
+			
+			// std::cout<<"Num Threads" <<omp_get_thread_num();	
 			int workers = min(world_size, (k*(k-1))/2);
 			for(int i = 0; i < workers; i++){
 				Problem p = problem_queue.top();
@@ -245,13 +221,13 @@ std::string getMinimumPenalties(std::string *genes, int k, int pxy, int pgap,
 				// send to rank 0
 				MPI_Recv(&result, 1, MPI_RESULT, MPI_ANY_SOURCE, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
 				result_queue.push(result);
-				std::cout<<"RECEIVE result\n";
+				// std::cout<<"RECEIVE result\n";
 
 				// send new task to it
 				Problem p = problem_queue.top();
 				problem_queue.pop();
 				MPI_Send(&p, 1, MPI_PROBLEM, status.MPI_SOURCE, 0, MPI_COMM_WORLD);
-				std::cout<<"Send Another\n";
+				// std::cout<<"Send Another\n";
 			}
 
 			// receive rest of the results
@@ -260,8 +236,10 @@ std::string getMinimumPenalties(std::string *genes, int k, int pxy, int pgap,
 				MPI_Status status;
 				MPI_Recv(&result, 1, MPI_RESULT, MPI_ANY_SOURCE, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
 				result_queue.push(result);
-				std::cout<<"RECEIVE result\n";
+				// std::cout<<"RECEIVE result\n";
 				Problem end_exec = {-1, -1, -1, -1};
+
+                //Send stop signal
 				MPI_Send(&end_exec, 1, MPI_PROBLEM, status.MPI_SOURCE, 0, MPI_COMM_WORLD);
 			}
 
@@ -277,13 +255,13 @@ std::string getMinimumPenalties(std::string *genes, int k, int pxy, int pgap,
 				if(p.probNum < 0){
 					break;
 				}
-				std::cout <<"Rank"<< rank<< ", i: "<< p.i <<"  j: "<< p.j <<"  ProbNum: "<< p.probNum<<"  Problem Size: "<< p.size  <<" \n" ;
+				// std::cout <<"Rank"<< rank<< ", i: "<< p.i <<"  j: "<< p.j <<"  ProbNum: "<< p.probNum<<"  Problem Size: "<< p.size  <<" \n" ;
 
 				//compute
 				Result result;
 				result.probNum = p.probNum;
 				compute(genes, p.i, p.j, pxy, pgap, &result);
-				std::cout <<"ProbNum "<< result.probNum << ", Penality"<< result.penality<< ",result hash: "<< result.problemHash <<" \n" ;
+				// std::cout <<"ProbNum "<< result.probNum << ", Penality"<< result.penality<< ",result hash: "<< result.problemHash <<" \n" ;
 
 				// send result to rank 0
 				MPI_Send(&result, 1, MPI_RESULT, root, 0, MPI_COMM_WORLD);
@@ -302,16 +280,6 @@ std::string getMinimumPenalties(std::string *genes, int k, int pxy, int pgap,
 		alignmentHash=sw::sha512::calculate(alignmentHash.append(result.problemHash));
 		penalties[result.probNum] = result.penality;
 	}
-	// Result result1;
-	// Result result2;
-	// int fake1;
-	// int fake2;
-	// MPI_Status status;
-	// // send to rank 0
-	// MPI_Recv(&result1, 1, MPI_INT, MPI_ANY_SOURCE, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
-	// MPI_Recv(&result2, 1, MPI_INT, MPI_ANY_SOURCE, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
-	
-	std::cout<<"Finish\n";
 	
 	return alignmentHash;
 }
@@ -320,17 +288,7 @@ std::string getMinimumPenalties(std::string *genes, int k, int pxy, int pgap,
 // do stuff for each MPI task based on rank
 void do_MPI_task(int rank)
 {	
-	MPI_Comm shmcomm;
-	MPI_Comm_split_type(MPI_COMM_WORLD, MPI_COMM_TYPE_SHARED, 0,
-                    MPI_INFO_NULL, &shmcomm);
-	int shmrank;
-	MPI_Comm_rank(shmcomm, &shmrank);
-	std::cout << "shmrank: "<< shmrank <<" \n";
-
 	int root = 0;
-	int rank2;
-	MPI_Comm_rank(MPI_COMM_WORLD, &rank2);
-	std::cout << "rank: "<< rank2 <<" \n";
 	int pxy, pgap;
 	MPI_Bcast(&pxy, 1, MPI_INT, 0, MPI_COMM_WORLD);
 	MPI_Bcast(&pgap, 1, MPI_INT, 0, MPI_COMM_WORLD);
@@ -355,7 +313,6 @@ void do_MPI_task(int rank)
 	MPI_Datatype MPI_PROBLEM;
 	MPI_Type_contiguous(4, MPI_INT, &MPI_PROBLEM);
 	MPI_Type_commit(&MPI_PROBLEM);
-
 	const int elements = 3;
 	MPI_Aint offsets[elements] = {0, 4, 8};
 	int blocklengths[elements] = {1, 1, 128 + 1};
@@ -370,23 +327,23 @@ void do_MPI_task(int rank)
 		Problem p;
 		MPI_Status status;
 		MPI_Recv(&p, 1, MPI_PROBLEM, root, 0, MPI_COMM_WORLD, &status);
+
+        //receive stop signal
 		if(p.probNum < 0){
 			break;
 		}
-		std::cout <<"Rank"<< rank<< ", i: "<< p.i <<"  j: "<< p.j <<"  ProbNum: "<< p.probNum<<"  Problem Size: "<< p.size  <<" \n" ;
+		// std::cout <<"Rank"<< rank<< ", i: "<< p.i <<"  j: "<< p.j <<"  ProbNum: "<< p.probNum<<"  Problem Size: "<< p.size  <<" \n" ;
 
 		//compute
 		Result result;
 		result.probNum = p.probNum;
 		compute(genes, p.i, p.j, pxy, pgap, &result);
-		std::cout <<"ProbNum "<< result.probNum << ", Penality"<< result.penality<< ",result hash: "<< result.problemHash <<" \n" ;
+		// std::cout <<"ProbNum "<< result.probNum << ", Penality"<< result.penality<< ",result hash: "<< result.problemHash <<" \n" ;
 
 		// send result to rank 0
 		MPI_Send(&result, 1, MPI_RESULT, root, 0, MPI_COMM_WORLD);
 		// std::cout <<"Sent\n ";
 	}
-	
-
 }
 
 
@@ -546,7 +503,7 @@ int getMinimumPenalty(std::string x, std::string y, int pxy, int pgap,
 	
 	int m = x.length(); // length of gene1
 	int n = y.length(); // length of gene2
-	
+
 	// table for storing optimal substructure answers
 	int **dp = new2d (m+1, n+1);
 //	size_t size = m + 1;
@@ -561,12 +518,12 @@ int getMinimumPenalty(std::string x, std::string y, int pxy, int pgap,
 	}
 	#pragma omp parallel for
 	for (i = 0; i <= n; i++)
-	{
+	{	
 		dp[0][i] = i * pgap;
 	}
 
-	int number_threads = 22;
-    omp_set_num_threads(number_threads);
+	int number_threads = 64;
+    omp_set_num_threads(16);
 	//integer devision
 	//calculate the deminsion of each block
 	int block_width = m / number_threads;
@@ -683,3 +640,5 @@ int getMinimumPenalty(std::string x, std::string y, int pxy, int pgap,
 	delete[] dp;
 	return ret;
 }
+
+ //mpicxx -std=c++14 -fopenmp -o tianyim-seqalkway tianyim-seqalkway.cpp -O3
