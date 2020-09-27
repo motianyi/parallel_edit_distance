@@ -111,15 +111,15 @@ struct Result {
 void compute(string* genes, int i, int j, int pxy, int pgap, Result* result);
 
 
-int min3(int a, int b, int c) {
-	if (a <= b && a <= c) {
-		return a;
-	} else if (b <= a && b <= c) {
-		return b;
-	} else {
-		return c;
-	}
-}
+// int min3(int a, int b, int c) {
+// 	if (a <= b && a <= c) {
+// 		return a;
+// 	} else if (b <= a && b <= c) {
+// 		return b;
+// 	} else {
+// 		return c;
+// 	}
+// }
 
 // equivalent of  int *dp[width] = new int[height][width]
 // but works for width not known at compile time.
@@ -148,17 +148,6 @@ int **new2d (int width, int height)
 std::string getMinimumPenalties(std::string *genes, int k, int pxy, int pgap,
 	int *penalties)
 {
-	// MPI_Comm shmcomm;
-	// MPI_Comm_split_type(MPI_COMM_WORLD, MPI_COMM_TYPE_SHARED, 0,
-    //                 MPI_INFO_NULL, &shmcomm);
-	// int shmrank;
-	// MPI_Comm_rank(shmcomm, &shmrank);
-//	std::cout << "shmrank: "<< shmrank <<" \n";
-
-	
-	// int rank;
-	// MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-//	std::cout << "rank: "<< rank <<" \n";
 	
 	// send pxy and pgap
 	MPI_Bcast(&pxy, 1, MPI_INT, 0, MPI_COMM_WORLD);
@@ -190,14 +179,6 @@ std::string getMinimumPenalties(std::string *genes, int k, int pxy, int pgap,
 	// Result priority queue
 	std::priority_queue<Result> result_queue;
 
-
-	// while(probNum > 0){
-	// 	Problem p = problem_queue.top();
-	// 	std::cout << "i: "<< p.i <<"  j: "<< p.j <<"  ProbNum: "<< p.probNum<<"  Problem Size: "<< p.size  <<" \n" ;
-	// 	problem_queue.pop();
-	// 	probNum --;
-	// }
-
 	MPI_Datatype MPI_PROBLEM;
 	MPI_Type_contiguous(4, MPI_INT, &MPI_PROBLEM);
 	MPI_Type_commit(&MPI_PROBLEM);
@@ -212,14 +193,6 @@ std::string getMinimumPenalties(std::string *genes, int k, int pxy, int pgap,
 	MPI_Datatype MPI_RESULT;
 	MPI_Type_create_struct(elements, blocklengths, offsets, types, &MPI_RESULT);
 	MPI_Type_commit(&MPI_RESULT);
-
-
-	// while (!problem_queue.empty()){
-	// 	Problem p = problem_queue.top();
-	// 	std::cout << "i: "<< p.i <<"  j: "<< p.j <<"  ProbNum: "<< p.probNum<<"  Problem Size: "<< p.size  <<" \n" ;
-	// 	problem_queue.pop();
-	// 	MPI_Send(&p, 1, MPI_PROBLEM, 0, 1111, MPI_COMM_WORLD);
-	// }
 	 
 	//send initial job to each process (EXCEPT root)
 	int world_size;
@@ -264,7 +237,6 @@ std::string getMinimumPenalties(std::string *genes, int k, int pxy, int pgap,
 	while(!result_queue.empty()){
 		Result result = result_queue.top();
 		result_queue.pop();
-		// std::cout <<"Collected at Rank0: ProbNum "<< result.probNum << ", Penality"<< result.penality<< ",result hash: "<< result.problemHash <<" \n" ;
 		alignmentHash=sw::sha512::calculate(alignmentHash.append(result.problemHash));
 		penalties[result.probNum] = result.penality;
 	}	
@@ -275,17 +247,7 @@ std::string getMinimumPenalties(std::string *genes, int k, int pxy, int pgap,
 // do stuff for each MPI task based on rank
 void do_MPI_task(int rank)
 {	
-	// MPI_Comm shmcomm;
-	// MPI_Comm_split_type(MPI_COMM_WORLD, MPI_COMM_TYPE_SHARED, 0,
-    //                 MPI_INFO_NULL, &shmcomm);
-	// int shmrank;
-	// MPI_Comm_rank(shmcomm, &shmrank);
-//	std::cout << "shmrank: "<< shmrank <<" \n";
-
 	int root = 0;
-	// int rank2;
-	// MPI_Comm_rank(MPI_COMM_WORLD, &rank2);
-//	std::cout << "rank: "<< rank2 <<" \n";
 	int pxy, pgap;
 	MPI_Bcast(&pxy, 1, MPI_INT, 0, MPI_COMM_WORLD);
 	MPI_Bcast(&pgap, 1, MPI_INT, 0, MPI_COMM_WORLD);
@@ -326,13 +288,11 @@ void do_MPI_task(int rank)
 		if(p.probNum < 0){
 			break;
 		}
-//		std::cout <<"Rank"<< rank<< ", i: "<< p.i <<"  j: "<< p.j <<"  ProbNum: "<< p.probNum<<"  Problem Size: "<< p.size  <<" \n" ;
 
 		//compute
 		Result result;
 		result.probNum = p.probNum;
 		compute(genes, p.i, p.j, pxy, pgap, &result);
-//		std::cout <<"ProbNum "<< result.probNum << ", Penality"<< result.penality<< ",result hash: "<< result.problemHash <<" \n" ;
 
 		// send result to rank 0
 		MPI_Send(&result, 1, MPI_RESULT, root, 0, MPI_COMM_WORLD);
@@ -350,7 +310,6 @@ void compute(string* genes, int i, int j, int pxy, int pgap, Result* result)
 	int m = gene1.length(); // length of gene1
 	int n = gene2.length(); // length of gene2
 	int l = m+n;
-	// penalties[probNum]=
 	int xans[l+1], yans[l+1];
 
 	// Assign result
@@ -387,105 +346,6 @@ void compute(string* genes, int i, int j, int pxy, int pgap, Result* result)
 	strcpy(result -> problemHash, problemhash.c_str());
 }
 
-
-// // function to find out the minimum penalty
-// // return the minimum penalty and put the aligned sequences in xans and yans
-// int getMinimumPenalty(std::string x, std::string y, int pxy, int pgap, int *xans, int *yans)
-// {
-	
-// 	int i, j; // intialising variables
-
-// 	int m = x.length(); // length of gene1
-// 	int n = y.length(); // length of gene2
-// 	std::cout <<"m: "<< m<<", "<<"n: "<< n<< "\n";
-	
-// 	// table for storing optimal substructure answers
-// 	int **dp = new2d (m+1, n+1);
-// 	size_t size = m + 1;
-// 	size *= n + 1;
-// 	memset (dp[0], 0, size);
-
-// 	// intialising the table
-// 	for (i = 0; i <= m; i++)
-// 	{
-// 		dp[i][0] = i * pgap;
-// 	}
-// 	for (i = 0; i <= n; i++)
-// 	{
-// 		dp[0][i] = i * pgap;
-// 	}
-
-// 	// calcuting the minimum penalty
-// 	for (i = 1; i <= m; i++)
-// 	{
-// 		for (j = 1; j <= n; j++)
-// 		{
-// 			if (x[i - 1] == y[j - 1])
-// 			{
-// 				dp[i][j] = dp[i - 1][j - 1];
-// 			}
-// 			else
-// 			{
-// 				dp[i][j] = min3(dp[i - 1][j - 1] + pxy ,
-// 						dp[i - 1][j] + pgap ,
-// 						dp[i][j - 1] + pgap);
-// 			}
-// 		}
-// 	}
-
-// 	// Reconstructing the solution
-// 	int l = n + m; // maximum possible length
-	
-// 	i = m; j = n;
-	
-// 	int xpos = l;
-// 	int ypos = l;
-	
-// 	while ( !(i == 0 || j == 0))
-// 	{
-// 		if (x[i - 1] == y[j - 1])
-// 		{
-// 			xans[xpos--] = (int)x[i - 1];
-// 			yans[ypos--] = (int)y[j - 1];
-// 			i--; j--;
-// 		}
-// 		else if (dp[i - 1][j - 1] + pxy == dp[i][j])
-// 		{
-// 			xans[xpos--] = (int)x[i - 1];
-// 			yans[ypos--] = (int)y[j - 1];
-// 			i--; j--;
-// 		}
-// 		else if (dp[i - 1][j] + pgap == dp[i][j])
-// 		{
-// 			xans[xpos--] = (int)x[i - 1];
-// 			yans[ypos--] = (int)'_';
-// 			i--;
-// 		}
-// 		else if (dp[i][j - 1] + pgap == dp[i][j])
-// 		{
-// 			xans[xpos--] = (int)'_';
-// 			yans[ypos--] = (int)y[j - 1];
-// 			j--;
-// 		}
-// 	}
-// 	while (xpos > 0)
-// 	{
-// 		if (i > 0) xans[xpos--] = (int)x[--i];
-// 		else xans[xpos--] = (int)'_';
-// 	}
-// 	while (ypos > 0)
-// 	{
-// 		if (j > 0) yans[ypos--] = (int)y[--j];
-// 		else yans[ypos--] = (int)'_';
-// 	}
-
-// 	int ret = dp[m][n];
-
-// 	delete[] dp[0];
-// 	delete[] dp;
-	
-// 	return ret;
-// }
 
 
 // function to find out the minimum penalty
