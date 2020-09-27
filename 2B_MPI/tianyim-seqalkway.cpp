@@ -517,7 +517,7 @@ int getMinimumPenalty(std::string x, std::string y, int pxy, int pgap,
 	}
 
 	int number_threads = 64;
-    omp_set_num_threads(16);
+    omp_set_num_threads(omp_get_max_threads());
 	//integer devision
 	//calculate the deminsion of each block
 	int block_width = m / number_threads;
