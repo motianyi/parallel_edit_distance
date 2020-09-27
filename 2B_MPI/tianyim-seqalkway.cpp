@@ -148,16 +148,16 @@ int **new2d (int width, int height)
 std::string getMinimumPenalties(std::string *genes, int k, int pxy, int pgap,
 	int *penalties)
 {
-	MPI_Comm shmcomm;
-	MPI_Comm_split_type(MPI_COMM_WORLD, MPI_COMM_TYPE_SHARED, 0,
-                    MPI_INFO_NULL, &shmcomm);
-	int shmrank;
-	MPI_Comm_rank(shmcomm, &shmrank);
+	// MPI_Comm shmcomm;
+	// MPI_Comm_split_type(MPI_COMM_WORLD, MPI_COMM_TYPE_SHARED, 0,
+    //                 MPI_INFO_NULL, &shmcomm);
+	// int shmrank;
+	// MPI_Comm_rank(shmcomm, &shmrank);
 //	std::cout << "shmrank: "<< shmrank <<" \n";
 
 	
-	int rank;
-	MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+	// int rank;
+	// MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 //	std::cout << "rank: "<< rank <<" \n";
 	
 	// send pxy and pgap
@@ -267,17 +267,7 @@ std::string getMinimumPenalties(std::string *genes, int k, int pxy, int pgap,
 		// std::cout <<"Collected at Rank0: ProbNum "<< result.probNum << ", Penality"<< result.penality<< ",result hash: "<< result.problemHash <<" \n" ;
 		alignmentHash=sw::sha512::calculate(alignmentHash.append(result.problemHash));
 		penalties[result.probNum] = result.penality;
-	}
-	// Result result1;
-	// Result result2;
-	// int fake1;
-	// int fake2;
-	// MPI_Status status;
-	// // send to rank 0
-	// MPI_Recv(&result1, 1, MPI_INT, MPI_ANY_SOURCE, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
-	// MPI_Recv(&result2, 1, MPI_INT, MPI_ANY_SOURCE, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
-//	std::cout<<"Finish\n";
-	
+	}	
 	return alignmentHash;
 }
 
@@ -285,16 +275,16 @@ std::string getMinimumPenalties(std::string *genes, int k, int pxy, int pgap,
 // do stuff for each MPI task based on rank
 void do_MPI_task(int rank)
 {	
-	MPI_Comm shmcomm;
-	MPI_Comm_split_type(MPI_COMM_WORLD, MPI_COMM_TYPE_SHARED, 0,
-                    MPI_INFO_NULL, &shmcomm);
-	int shmrank;
-	MPI_Comm_rank(shmcomm, &shmrank);
+	// MPI_Comm shmcomm;
+	// MPI_Comm_split_type(MPI_COMM_WORLD, MPI_COMM_TYPE_SHARED, 0,
+    //                 MPI_INFO_NULL, &shmcomm);
+	// int shmrank;
+	// MPI_Comm_rank(shmcomm, &shmrank);
 //	std::cout << "shmrank: "<< shmrank <<" \n";
 
 	int root = 0;
-	int rank2;
-	MPI_Comm_rank(MPI_COMM_WORLD, &rank2);
+	// int rank2;
+	// MPI_Comm_rank(MPI_COMM_WORLD, &rank2);
 //	std::cout << "rank: "<< rank2 <<" \n";
 	int pxy, pgap;
 	MPI_Bcast(&pxy, 1, MPI_INT, 0, MPI_COMM_WORLD);
